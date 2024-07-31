@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 
 from .common import Entry
-
 from .app import main as collector
 
 app = FastAPI()
