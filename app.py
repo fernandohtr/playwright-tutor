@@ -1,5 +1,6 @@
 import asyncio
 import time
+import httpx
 
 from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright
@@ -85,6 +86,35 @@ async def async_func():
     return content
 
 
+async def tjce1_async():
+    url = "https://esaj.tjce.jus.br/cpopg/show.do?processo.numero=0070337-91.2008.8.06.0001"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        return response.text
+
+def tjce1_extract(page):
+    soup = bs(page, "html.parser")
+    try:
+
+        classe = soup.find("div", id="classeProcesso").find("span").text
+        assunto = soup.find("div", id="assuntoProcesso").find("span").text
+        secao = soup.find("div", id="secaoProcesso").find("span").text
+        orgao = soup.find("div", id="orgaoJulgadorProcesso").find("span").text
+        area = soup.find("div", id="areaProcesso").find("span").text
+
+        data = {
+            "classe": classe,
+            "assunto": assunto,
+            "secao": secao,
+            "orgao": orgao,
+            "area": area,
+        }
+        print(data)
+    except:
+        breakpoint()
+
+
 async def tjce2_async():
     async with async_playwright() as p:
         async with await p.chromium.launch(headless=True) as browser:
@@ -98,30 +128,40 @@ async def tjce2_async():
             await page.locator("#processoSelecionado").nth(0).click()
             await page.locator("#botaoEnviarIncidente").click()
             await page.wait_for_load_state("load")
-            soup = bs(await page.content(), "html.parser")
-            try:
+            return await page.content()
 
-                classe = soup.find("div", id="classeProcesso").find("span").text
-                assunto = soup.find("div", id="assuntoProcesso").find("span").text
-                secao = soup.find("div", id="secaoProcesso").find("span").text
-                orgao = soup.find("div", id="orgaoJulgadorProcesso").find("span").text
-                area = soup.find("div", id="areaProcesso").find("span").text
 
-                data = {
-                    "classe": classe,
-                    "assunto": assunto,
-                    "secao": secao,
-                    "orgao": orgao,
-                    "area": area,
-                }
-                print(data)
-            except:
-                breakpoint()
+def tjce2_extract(page):
+        soup = bs(page, "html.parser")
+
+        try:
+            classe = soup.find("div", id="classeProcesso").find("span").text
+            assunto = soup.find("div", id="assuntoProcesso").find("span").text
+            secao = soup.find("div", id="secaoProcesso").find("span").text
+            orgao = soup.find("div", id="orgaoJulgadorProcesso").find("span").text
+            area = soup.find("div", id="areaProcesso").find("span").text
+
+            data = {
+                "classe": classe,
+                "assunto": assunto,
+                "secao": secao,
+                "orgao": orgao,
+                "area": area,
+            }
+            print(data)
+        except:
+            breakpoint()
+
+
+async def tjce_main():
+    tjce1_result, tjce2_result = await asyncio.gather(tjce1_async(), tjce2_async())
+
+    tjce2_extract(tjce2_result)
 
 
 start = time.perf_counter()
 
-asyncio.run(tjce2_async())
+asyncio.run(tjce_main())
 
 elapsed = time.perf_counter() - start
 print(f"Program completed in {elapsed:0.5f} seconds.")
