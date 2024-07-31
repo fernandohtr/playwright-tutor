@@ -50,7 +50,7 @@ def get_court(number: str) -> str:
 async def tjce_main(number: str) -> dict:
     tjce1_result, tjce2_result = await asyncio.gather(
         tjce1_async(number),
-        tjce2_async(number)
+        tjce2_async(number),
     )
 
     data = {
@@ -68,12 +68,21 @@ async def tjce1_async(number: str) -> str:
 
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
+    soup = bs(response.text, "html.parser")
+    msg = soup.find("td", id="mensagemRetorno")
+
+    if msg and "Falha na tentativa de exibir detalhes" in msg.text:
+        return ""
     return response.text
 
 
-def tjce1_extract(page: str) -> dict:
+def tjce1_extract(page: str) -> dict | None:
+    if not page:
+        return None
+    
     soup = bs(page, "html.parser")
-    classe = soup.find("span", id="classeProcesso").text
+
+    classe = soup.find("span", id="classeProcesso").text    
     assunto = soup.find("span", id="assuntoProcesso").text
     foro = soup.find("span", id="foroProcesso").text
     vara = soup.find("span", id="varaProcesso").text
@@ -101,14 +110,26 @@ async def tjce2_async(number: str) -> str:
             await page.locator("#numeroDigitoAnoUnificado").fill(n1)
             await page.locator("#foroNumeroUnificado").fill(n2)
             await page.locator("#pbConsultar").click()
-            await page.wait_for_selector("#modalIncidentes")
+
+            await page.wait_for_load_state("load")
+            first_page = await page.content()
+
+            soup = bs(first_page, "html.parser")
+            msg = soup.find("td", id="mensagemRetorno")
+
+            if msg and ("Não foi possível executar esta operação" in msg.text or "deve ser preenchido" in msg):
+                return ""
+
             await page.locator("#processoSelecionado").nth(0).click()
             await page.locator("#botaoEnviarIncidente").click()
             await page.wait_for_load_state("load")
             return await page.content()
 
 
-def tjce2_extract(page: str) -> dict:
+def tjce2_extract(page: str) -> dict | None:
+        if not page:
+            return None
+
         soup = bs(page, "html.parser")
 
         classe = soup.find("div", id="classeProcesso").find("span").text
