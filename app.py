@@ -1,12 +1,15 @@
 import ast
 import asyncio
 import httpx
+import re
 
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup as bs
 
 from .common import Entry
 from .cache import client
+
+ONE_HOUR = 60 * 60
 
 COURTS = {
     "8.02": "tjal",
@@ -24,6 +27,9 @@ def main(entry: Entry):
 async def get_process_data(entry: Entry) -> dict:
     cache = await client.get(entry.process_number)
 
+    if not bool(re.search(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$", entry.process_number)):
+        return {"message": "Process number must have this parttern: XXXXXXX-XX.XXXX.X.XX.XXXX"}
+    
     if cache:
         data_str = cache.decode("utf-8")
         data_dict = ast.literal_eval(data_str)
@@ -59,7 +65,7 @@ async def tjce_main(number: str) -> dict:
     }
 
     data_str = str(data)
-    await client.set(number, data_str)
+    await client.set(number, data_str, ex=ONE_HOUR)
     return data
 
 
@@ -71,7 +77,7 @@ async def tjce1_async(number: str) -> str:
     soup = bs(response.text, "html.parser")
     msg = soup.find("td", id="mensagemRetorno")
 
-    if msg and "Falha na tentativa de exibir detalhes" in msg.text:
+    if msg and ("Falha na tentativa de exibir detalhes" in msg.text or "Não existem informações disponíveis"):
         return ""
     return response.text
 
