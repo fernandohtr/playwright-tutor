@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional, Union
 from pydantic import BaseModel
 
 
@@ -12,6 +12,7 @@ class FirstInstance(BaseModel):
     foro: str
     vara: str
 
+
 class SecondInstance(BaseModel):
     classe: str
     assunto: str
@@ -19,6 +20,11 @@ class SecondInstance(BaseModel):
     orgao: str
     area: str
 
+
 class ProcessInfo(BaseModel):
     first_instance: Optional[FirstInstance] = None
     second_instance: Optional[SecondInstance] = None
+
+
+class ErrorMessage(BaseModel):
+    error: str

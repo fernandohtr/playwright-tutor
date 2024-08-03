@@ -3,10 +3,12 @@ import asyncio
 import httpx
 import re
 
+from typing import Union
+
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup as bs
 
-from .schemas import Entry, ProcessInfo
+from .schemas import Entry, ProcessInfo, ErrorMessage
 from .cache import client
 
 # segredo de justica
@@ -20,18 +22,19 @@ COURTS = {
 }
 
 
-def main(entry: Entry) -> ProcessInfo:
+def main(entry: Entry) -> Union[ProcessInfo, ErrorMessage]:
     loop = asyncio.get_event_loop()
     if loop.is_running():
         return loop.create_task(get_process_data(entry))
     return asyncio.run(get_process_data(entry))
 
 
-async def get_process_data(entry: Entry) -> ProcessInfo:
+async def get_process_data(entry: Entry) -> Union[ProcessInfo, ErrorMessage]:
     cache = await client.get(entry.process_number)
 
-    if not bool(re.search(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$", entry.process_number)):
-        return {"message": "Process number must have this parttern: XXXXXXX-XX.XXXX.X.XX.XXXX"}
+    match_pattern = bool(re.search(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$", entry.process_number))
+    if not match_pattern:
+        return ErrorMessage(error="Process number must have this parttern: XXXXXXX-XX.XXXX.X.XX.XXXX")
     
     if cache:
         data_str = cache.decode("utf-8")
@@ -80,7 +83,10 @@ async def tjce1_async(number: str) -> str:
     soup = bs(response.text, "html.parser")
     msg = soup.find("td", id="mensagemRetorno")
 
-    if msg and ("Falha na tentativa de exibir detalhes" in msg.text or "Não existem informações disponíveis"):
+    if msg and (
+        "Falha na tentativa de exibir detalhes" in msg.text or
+        "Não existem informações disponíveis" in msg.text
+    ):
         return ""
     return response.text
 
@@ -126,7 +132,11 @@ async def tjce2_async(number: str) -> str:
             soup = bs(first_page, "html.parser")
             msg = soup.find("td", id="mensagemRetorno")
 
-            if msg and ("Não foi possível executar esta operação" in msg.text or "deve ser preenchido" in msg):
+            if msg and (
+                "Não foi possível executar esta operação" in msg.text or
+                "deve ser preenchido" in msg.text or
+                "Não existem informações disponíveis" in msg.text
+            ):
                 return ""
 
             if await page.query_selector("#processoSelecionado"):
