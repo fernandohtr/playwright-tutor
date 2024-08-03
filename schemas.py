@@ -24,7 +24,3 @@ class SecondInstance(BaseModel):
 class ProcessInfo(BaseModel):
     first_instance: Optional[FirstInstance] = None
     second_instance: Optional[SecondInstance] = None
-
-
-class ErrorMessage(BaseModel):
-    error: str

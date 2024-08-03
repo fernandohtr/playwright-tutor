@@ -1,3 +1,5 @@
+import re
+
 from typing import Dict, Union
 from fastapi import FastAPI, Query, HTTPException, status
 
@@ -11,14 +13,17 @@ app = FastAPI()
 async def main(process_number: str = Query(..., alias="q")) -> ProcessInfo:
     entry = Entry(process_number=process_number)
     result = await collector(entry)
-    if hasattr(result, "first_instance") and (not result.first_instance and not result.second_instance):
+
+    pattern = re.compile(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$")
+
+    if not pattern.match(process_number):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Process number must have this parttern: XXXXXXX-XX.XXXX.X.XX.XXXX",
+        )
+    elif hasattr(result, "first_instance") and (not result.first_instance and not result.second_instance):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Process number {process_number} not found",
-        )
-    elif hasattr(result, "error"):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=result.error,
         )
     return result

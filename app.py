@@ -1,14 +1,12 @@
 import ast
 import asyncio
 import httpx
-import re
-
-from typing import Union
 
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup as bs
+from typing import Optional
 
-from .schemas import Entry, ProcessInfo, ErrorMessage
+from .schemas import Entry, ProcessInfo
 from .cache import client
 
 # segredo de justica
@@ -22,19 +20,15 @@ COURTS = {
 }
 
 
-def main(entry: Entry) -> Union[ProcessInfo, ErrorMessage]:
+def main(entry: Entry) -> ProcessInfo:
     loop = asyncio.get_event_loop()
     if loop.is_running():
         return loop.create_task(get_process_data(entry))
     return asyncio.run(get_process_data(entry))
 
 
-async def get_process_data(entry: Entry) -> Union[ProcessInfo, ErrorMessage]:
+async def get_process_data(entry: Entry) -> ProcessInfo:
     cache = await client.get(entry.process_number)
-
-    match_pattern = bool(re.search(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$", entry.process_number))
-    if not match_pattern:
-        return ErrorMessage(error="Process number must have this parttern: XXXXXXX-XX.XXXX.X.XX.XXXX")
     
     if cache:
         data_str = cache.decode("utf-8")
@@ -92,7 +86,7 @@ async def tjce1_async(number: str) -> str:
     return response.text
 
 
-def tjce1_extract(page: str) -> dict | None:
+def tjce1_extract(page: str) -> Optional[dict]:
     if not page:
         return None
     
@@ -148,7 +142,7 @@ async def tjce2_async(number: str) -> str:
             return await page.content()
 
 
-def tjce2_extract(page: str) -> dict | None:
+def tjce2_extract(page: str) -> Optional[dict]:
         if not page:
             return None
 
