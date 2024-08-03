@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -19,5 +20,5 @@ class SecondInstance(BaseModel):
     area: str
 
 class ProcessInfo(BaseModel):
-    first_instance: FirstInstance
-    second_instance: SecondInstance
+    first_instance: Optional[FirstInstance] = None
+    second_instance: Optional[SecondInstance] = None
