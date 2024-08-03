@@ -85,7 +85,8 @@ async def tjce1_async(number: str) -> str:
 
     if msg and (
         "Falha na tentativa de exibir detalhes" in msg.text or
-        "Não existem informações disponíveis" in msg.text
+        "Não existem informações disponíveis" in msg.text or
+        "Não foi possível obter os dados do processo" in msg.text
     ):
         return ""
     return response.text
