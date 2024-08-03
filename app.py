@@ -6,8 +6,11 @@ import re
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup as bs
 
-from .common import Entry
+from .schemas import Entry, ProcessInfo
 from .cache import client
+
+# segredo de justica
+# 0204051-13.2023.8.06.0296
 
 ONE_HOUR = 60 * 60
 
@@ -17,14 +20,14 @@ COURTS = {
 }
 
 
-def main(entry: Entry):
+def main(entry: Entry) -> ProcessInfo:
     loop = asyncio.get_event_loop()
     if loop.is_running():
         return loop.create_task(get_process_data(entry))
     return asyncio.run(get_process_data(entry))
 
 
-async def get_process_data(entry: Entry) -> dict:
+async def get_process_data(entry: Entry) -> ProcessInfo:
     cache = await client.get(entry.process_number)
 
     if not bool(re.search(r"^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$", entry.process_number)):
@@ -53,20 +56,20 @@ def get_court(number: str) -> str:
     return COURTS[numbers_from_court]
 
 
-async def tjce_main(number: str) -> dict:
+async def tjce_main(number: str) -> ProcessInfo:
     tjce1_result, tjce2_result = await asyncio.gather(
         tjce1_async(number),
         tjce2_async(number),
     )
 
     data = {
-        "1st_instance": tjce1_extract(tjce1_result),
-        "2nd_instance": tjce2_extract(tjce2_result),
+        "first_instance": tjce1_extract(tjce1_result),
+        "second_instance": tjce2_extract(tjce2_result),
     }
 
     data_str = str(data)
     await client.set(number, data_str, ex=ONE_HOUR)
-    return data
+    return ProcessInfo(**data)
 
 
 async def tjce1_async(number: str) -> str:
@@ -126,9 +129,11 @@ async def tjce2_async(number: str) -> str:
             if msg and ("Não foi possível executar esta operação" in msg.text or "deve ser preenchido" in msg):
                 return ""
 
-            await page.locator("#processoSelecionado").nth(0).click()
-            await page.locator("#botaoEnviarIncidente").click()
-            await page.wait_for_load_state("load")
+            if await page.query_selector("#processoSelecionado"):
+                await page.locator("#processoSelecionado").nth(0).click()
+                await page.locator("#botaoEnviarIncidente").click()
+                await page.wait_for_load_state("load")
+                return await page.content()
             return await page.content()
 
 
